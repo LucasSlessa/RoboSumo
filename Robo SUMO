@@ -1,0 +1,148 @@
+#include <esp_intr.h>
+#include <Arduino.h>
+const int sensorEsquerdoPin = 1;  
+const int sensorMeioEsquerdoPin = 2;
+const int sensorMeioDireitoPin = 3;
+const int sensorDireitoPin = 4;
+
+const int ultrassonicoTriggerPin = 8;  
+const int ultrassonicoEchoPin = 9;
+
+const int motorEsquerdoPino1 = 2;
+const int motorEsquerdoPino2 = 3;
+const int motorDireitoPino1 = 4;
+const int motorDireitoPino2 = 5;
+
+const float DISTANCIA_OBSTACULO = 10.0;  // Ajuste conforme necessário
+const int DELAY_LOOP = 50;  // Milissegundos
+
+volatile bool sensorEsquerdoAtivado = false;
+volatile bool sensorDireitoAtivado = false;
+
+enum Direcao { FRENTE, TRAS, DIREITA, ESQUERDA, PARAR };
+
+void setDirecao(Direcao direcao) {
+    digitalWrite(motorEsquerdoPino1, LOW);
+    digitalWrite(motorEsquerdoPino2, LOW);
+    digitalWrite(motorDireitoPino1, LOW);
+    digitalWrite(motorDireitoPino2, LOW);
+
+    switch (direcao) {
+        case FRENTE:
+            digitalWrite(motorEsquerdoPino1, HIGH);
+            digitalWrite(motorDireitoPino1, HIGH);
+            break;
+        case TRAS:
+            digitalWrite(motorEsquerdoPino2, HIGH);
+            digitalWrite(motorDireitoPino2, HIGH);
+            break;
+        case DIREITA:
+            digitalWrite(motorDireitoPino1, HIGH);
+            break;
+        case ESQUERDA:
+            digitalWrite(motorEsquerdoPino1, HIGH);
+            break;
+        case PARAR:
+            // Nenhuma ação necessária
+            break;
+    }
+}
+
+void avancar() {
+    setDirecao(FRENTE);
+}
+
+void voltar() {
+    setDirecao(TRAS);
+}
+
+void girarEsquerda() {
+    setDirecao(ESQUERDA);
+}
+
+void girarDireita() {
+    setDirecao(DIREITA);
+}
+
+void parar() {
+    setDirecao(PARAR);
+}
+
+void sensorEsquerdoInterrupcao() {
+    sensorEsquerdoAtivado = true;
+}
+
+void sensorDireitoInterrupcao() {
+    sensorDireitoAtivado = true;
+}
+
+void configurarInterrupcoes() {
+    attachInterrupt(digitalPinToInterrupt(sensorEsquerdoPin), sensorEsquerdoInterrupcao, FALLING);
+    attachInterrupt(digitalPinToInterrupt(sensorDireitoPin), sensorDireitoInterrupcao, FALLING);
+}
+
+bool detectarObstaculo() {
+    digitalWrite(ultrassonicoTriggerPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(ultrassonicoTriggerPin, LOW);
+    long duracao = pulseIn(ultrassonicoEchoPin, HIGH);
+    float distancia = (duracao / 2.0) * 0.0343;
+
+    return (distancia < DISTANCIA_OBSTACULO);
+}
+
+void loop() {
+    if (sensorEsquerdoAtivado) {
+        sensorEsquerdoAtivado = false;
+        // Lógica para lidar com a interrupção do sensor esquerdo
+        // Exemplo: girar para a direita
+        girarDireita();
+        Serial.println("Girar Direita");
+    }
+
+    if (sensorDireitoAtivado) {
+        sensorDireitoAtivado = false;
+        // Lógica para lidar com a interrupção do sensor direito
+        // Exemplo: girar para a esquerda
+        girarEsquerda();
+        Serial.println("Girar Esquerda");
+    }
+
+    // Lógica para detecção de obstáculo usando ultrassônico
+    if (detectarObstaculo()) {
+        avancar();
+        Serial.println("Avançar");
+    } else {
+       avancar();
+       delay(100);
+       girarEsquerda();
+        delay(50);
+       avancar();
+        delay(150);
+       girarDireita();
+    }
+
+    delay(DELAY_LOOP);
+}
+
+void setup() {
+    Serial.begin(9600);
+
+    pinMode(sensorEsquerdoPin, INPUT);
+    pinMode(sensorMeioEsquerdoPin, INPUT);
+    pinMode(sensorMeioDireitoPin, INPUT);
+    pinMode(sensorDireitoPin, INPUT);
+
+    pinMode(ultrassonicoTriggerPin, OUTPUT);
+    pinMode(ultrassonicoEchoPin, INPUT);
+
+    pinMode(motorEsquerdoPino1, OUTPUT);
+    pinMode(motorEsquerdoPino2, OUTPUT);
+    pinMode(motorDireitoPino1, OUTPUT);
+    pinMode(motorDireitoPino2, OUTPUT);
+
+    configurarInterrupcoes();
+
+    // Restante do código de setup
+    // ...
+}
